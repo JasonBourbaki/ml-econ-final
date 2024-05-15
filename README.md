@@ -18,7 +18,7 @@ Final project for the Machine Learning and Economics course by Jiaxin He and Val
 > 
 > conda ≥ 24.0.0
 > 
-> TensorFlow ≥ 2.15.0
+> TensorFlow ≤ 2.9.0
 > 
 
 ---
@@ -31,14 +31,13 @@ install_packages("ggplot2")
 install_packages("outliers")
 install_packages("dplyr")
 install_packages("tidyverse")
-install_packages("stringr")
+install_packages(remotes)
+install_packages(reticulate)
+remotes::install_github("rstudio/tensorflow")
+install_packages(keras)
+
+reticulate::install_python(version = "3.10:latest")
+keras::install_keras(version = "default", method = "conda", conda = "auto")
+use_condaenv("r-tensorflow")
 ```
 
-library(remotes)
-library(reticulate)
-remotes::install_github("rstudio/tensorflow")
-reticulate::install_python(version = "3.10:latest")
-
-library(tensorflow)
-library(keras)
-keras::install_keras(version = "default")'
