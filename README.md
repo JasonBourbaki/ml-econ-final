@@ -25,7 +25,7 @@ Final project for the Machine Learning and Economics course by Jiaxin He and Val
 
 ## Required Packages
 
-### Python dependencies:
+### Python dependencies
 
 Anaconda 3 Installation: [Documentation](https://docs.anaconda.com/free/anaconda/install/index.html)
 
@@ -34,7 +34,7 @@ Hugging Face Hub Installation: [Documentation](https://huggingface.co/docs/huggi
 Youdao BCE Embedding Installation: [Documentation](https://github.com/netease-youdao/BCEmbedding/blob/master/README.md)
 
 
-### R packages:
+### R packages
 ```
 install_packages("ggplot2")
 install_packages("outliers")
@@ -52,7 +52,7 @@ use_condaenv("r-tensorflow")
 
 ---
 
-## Data Acquisition0
+## Data Acquisition
 
 Text data is scrapped from the legacy web version of [People's Daily Weibo account](https://weibo.cn/rmrb), covering the decade from 01-01-2014 to 12-31-2023.
 
