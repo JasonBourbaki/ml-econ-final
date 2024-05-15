@@ -45,7 +45,7 @@ install_packages(reticulate)
 remotes::install_github("rstudio/tensorflow")
 install_packages(keras)
 
-reticulate::install_python(version = "3.10:latest")
+reticulate::install_python(version = "3.11:latest")
 keras::install_keras(version = "default", method = "conda", conda = "auto")
 use_condaenv("r-tensorflow")
 ```
