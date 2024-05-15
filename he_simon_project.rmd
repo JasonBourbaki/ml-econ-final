@@ -1,0 +1,275 @@
+---
+title: "he_simon_project"
+author: "Jiaxin He"
+date: "2024-05-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+```
+
+Import packages:
+
+```{r, warning = FALSE, include=FALSE}
+library(ggplot2)
+library(outliers)
+library(dplyr)
+library(tidyverse)
+library(stringr) 
+
+library(reticulate)
+library(keras)
+library(tensorflow)
+install_tensorflow(conda = "auto", version = "default")
+
+library(text)
+```
+
+### Data Processing
+
+Import data:
+
+```{r}
+Sys.setlocale(category = "LC_ALL", locale = "Chinese (Simplified)")
+
+df <- read.csv("peoples-daily-tweets.csv", encoding = "UTF-8", header = T, stringsAsFactors = F)
+df$date <- as.Date(sub("[ ].*", "", df$publish_time), format = "%m/%d/%Y")
+df$iqr_distance <- rep(0, nrow(df))
+df$outlier <- rep(FALSE, nrow(df))
+df <- df[order(df$date),]
+df <- df[df$date < "2023-12-31",]
+colnames(df)[1] <- "text"
+
+df$text <- str_replace_all(df$text, "[[:punct:]]", "")
+df$text <- str_replace_all(df$text, "原图", "")
+df$text <- str_replace_all(df$text, "链接", "")
+```
+
+Delete holidays:
+
+```{r}
+holiday.keywords <- c("元旦", "新年", "跨年", "除夕", "过年", "春节", "元宵", "清明", "五一", "劳动节", "七一",  "八一", "端午", "中秋", "国庆")
+
+holiday.filter <- function(string, keywords){
+  for(kw in keywords){
+    if(grepl(kw, string, fixed = TRUE)){
+      return(FALSE)
+    }
+  }
+  return(TRUE)
+}
+
+is.holiday <- sapply(df$text, holiday.filter, keywords = holiday.keywords)
+df <- df[is.holiday,]
+```
+
+Find Outliers:
+
+```{r}
+for (dt in unique(df$date)){
+  dt.engagement <- df[df$date == dt,]$total_engagement
+  thirdqt <- quantile(dt.engagement)[[4]]
+  df[df$date == dt,]$iqr_distance <- (dt.engagement - thirdqt) / IQR(dt.engagement)
+}
+
+df <- na.omit(df)
+df$outlier <- as.integer(df$iqr_distance >= 1.5 & df$total_engagement > 10000)
+```
+
+Display top 10 most engaged:
+
+```{r}
+top10 <- head(df[df$outlier == TRUE, ][order(df[df$outlier == TRUE, ]$total_engagement, decreasing = TRUE), ], 10)
+top10
+```
+
+Visualize the number of tweets per day
+
+```{r}
+tweets.per.day <- df %>% group_by(date) %>% count
+colnames(tweets.per.day)[2] <- "total_tweets"
+tweets.per.day$outliers <- rep(0, nrow(tweets.per.day))
+outliers.per.day <- df[df$outlier == TRUE, ] %>% group_by(date) %>% count
+
+mean(tweets.per.day$outliers) / mean(tweets.per.day$total_tweets)
+tweets.per.day[tweets.per.day$date %in% outliers.per.day$date, ]$outliers <- outliers.per.day$n
+tweets.per.month <- tweets.per.day %>% group_by(month = lubridate::floor_date(date, 'month')) %>% summarize(monthly_tweets = sum(total_tweets), monthly_outliers = sum(outliers))
+tweets.per.month$outlier_ratio <- tweets.per.month$monthly_outliers / tweets.per.month$monthly_tweets
+
+ggplot(data = tweets.per.month, aes(x = month)) +
+  scale_y_continuous(name = "Number of Tweets (Monthly)", sec.axis = sec_axis(trans =~. *0.00010, name = "Fraction of Viral Tweets (Monthly)")) +
+  geom_line(aes(y = monthly_tweets, colour = "Number of Tweets")) +
+  geom_line(aes(y = outlier_ratio/0.00010, colour = "Fraction of Viral Tweets")) +
+  scale_colour_manual("", breaks = c("Number of Tweets", "Fraction of Viral Tweets"),
+                      values = c("red", "blue")) +
+  theme(legend.position='top', legend.justification='left', legend.direction='horizontal') +
+  labs(title = "Figure 1: Fraction of Viral Tweets and Number of Tweets in the Data Set") + xlab("Month")
+```
+
+Generate metadata (Forward / comment ratios, weekday or weekend, length of tweet, number of tweets published that day, number of viral tweets published that day)
+
+```{r}
+df$log_engagement <- log(df$total_engagement)
+df$comment_ratio <- df$comments / df$total_engagement
+df$forward_ratio <- df$forwards / df$total_engagement
+df$is_weekend <- as.integer(weekdays(df$date) %in% c("星期六", "星期日"))
+df$tweet_length <- nchar(df$text)
+
+daily_tweets <- function(df){
+  df$daily_total <- rep(0, nrow(df))
+  df$daily_outlier <- rep(0, nrow(df))
+  
+  for(dt in tweets.per.day$date){
+    df[df$date == dt, ]$daily_total <- rep(tweets.per.day[tweets.per.day$date == dt, ]$total_tweets[1], sum(df$date == dt))
+    df[df$date == dt, ]$daily_outlier <- rep(tweets.per.day[tweets.per.day$date == dt, ]$outliers[1], sum(df$date == dt))
+  }
+  
+  return(df)
+}
+
+df <- daily_tweets(df)
+```
+
+### Language Modeling
+
+Process text through the Youdao BCE word embedding from Hugging Face
+
+R version:
+
+```{r}
+# Install text required python packages in a conda environment (with defaults).
+#text::textrpp_install()
+
+# Show available conda environments.
+#reticulate::conda_list()
+
+#text::textrpp_initialize(save_profile = FALSE)
+
+# model_dimensions <- 768
+# dimension_titles <- paste("Dim", (1:model_dimensions), "_texts", sep = "")
+# df[dimension_titles] <- 0
+# 
+# for(block in 1:celing(nrow(df)/1000)){
+#   if(block !=  ceiling(nrow(df)/1000)){
+#     block.indices <- ((block-1)*1000+1):(block*1000)
+#   }else{
+#     block.indices <- ((block-1)*1000+1):nrow(df)
+#   }
+#   block.text <- df$text[block.indices]
+#   embed.block <- textEmbed(
+#     texts = block.text,
+#     hg_gated = TRUE,
+#     hg_token = "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",
+#     model = 'maidalun1020/bce-embedding-base_v1',
+#     aggregation_from_tokens_to_word_types = NULL,
+#     keep_token_embeddings = FALSE,
+#     device = 'gpu',
+#     model_max_length = as.integer(256)
+#   )
+#   df[dimension_titles][block.indices,] <- embed.block$texts$texts
+# }
+```
+
+Use python for embedding since text-package in R runs too slowly:
+
+```{r}
+model_dimensions <- 768
+dimension_titles <- paste("Dim", (1:model_dimensions), "_texts", sep = "")
+df[dimension_titles] <- 0
+
+write.csv(df[,1:2], file = "./weibo_texts.csv", fileEncoding = "UTF-8")
+py_run_file("./weibo-bce-embed.py")
+df[dimension_titles] <- read.csv("embeddings.csv", header = T)[dimension_titles]
+```
+
+Train a LSTM model to classify tweets by word embedding:
+
+```{r}
+lstm_text_embed <- function(){
+  return()
+}
+
+model.lstm <- keras_model_sequential()
+model.lstm %>%
+  layer_lstm(units = 64, return_sequences = TRUE, input_shape = c(1, 1)) %>%
+  layer_dropout(rate = 1/4) %>%
+  layer_lstm(units = 64, return_sequences = TRUE) %>%
+  layer_dropout(rate = 1/4) %>%
+  layer_lstm(units = 64) %>%
+  layer_dropout(rate = 1/4) %>%
+  layer_dense(units = 1)
+
+model.lstm %>% compile(
+  optimizer = 'adam',
+  loss = 'mse',
+  metrics = list('mae')
+)
+```
+
+Train a MLP to classify tweets by metadata:
+
+```{r}
+mlp_metadata <- function()
+
+model.meta <- keras_model_sequential()
+model.meta %>%
+  layer_dense(units = 64, kernel_regularizer = regularizer_l2(0.01), bias_regularizer = regularizer_l2(0.01)) %>%
+  layer_dense(units = 64, activation = "relu") %>%
+  layer_dense(units = 64, activation = "sigmoid") %>%
+  layer_dense(units = 16, activation = 'softmax')
+
+model.meta %>% compile(
+  optimizer = "adam",
+  loss = "binary_crossentropy",
+  metrics = list('accuracy')
+)
+
+
+```
+
+Combine the weights from the previous two layers to train a final classifier MLP:
+
+```{r}
+mlp_combined <- function()
+```
+
+Compute the Political Change Index:
+
+```{r}
+pci_output <- data.frame('month' = seq(as.Date('2015-01-01'), as.Date('2023-12-01'), by = "month"))
+pci_output$pci <- rep(0, nrow(pci_output))
+
+data.year <- df[df$date < '2015-01-01', 10:ncol(df)]
+label.year <- df[df$date < '2015-01-01', c('outlier')]
+data.month <- df[df$date < '2015-02-01' & df$date >= '2015-01-01', 10:ncol(df)]
+label.month <- df[df$date < '2015-02-01' & df$date >= '2015-01-01', c('outlier')]
+
+
+```
+
+### Robustness Testing
+
+Import economic data:
+
+```{r}
+df.sse <- read.csv("macro_controls.csv")
+colnames(df.sse)[1] <- "month"
+```
+
+Graph the index over time with major events:
+
+```{r}
+
+```
+
+Generate lagged PCI and fit against SSECI:
+
+```{r}
+summary(lm(SSE_volatility ~ PCI + SSE_log_volume + three_month_rate + CPI_growth + USD_ex + EPU + export_yoy, data = df.sse))
+```
+
+```{r}
+ggplot(data = df.sse, aes(x = month, y = PCI)) + geom_point(colour = "blue")
+```
+
