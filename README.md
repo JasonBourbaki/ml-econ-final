@@ -18,7 +18,7 @@ Final project for the Machine Learning and Economics course by Jiaxin He and Val
 > 
 > conda ≥ 24.0.0
 > 
-> TensorFlow ≥ 2.9 ≤ 2.15
+> TensorFlow ≥ 2.9 & ≤ 2.15
 > 
 
 ---
@@ -50,3 +50,21 @@ keras::install_keras(version = "default", method = "conda", conda = "auto")
 use_condaenv("r-tensorflow")
 ```
 
+---
+
+## Data Acquisition
+
+Weibo Data is scrapped from the legacy web version of [People's Daily](https://weibo.cn/rmrb) from 01-01-2014 to 12-31-2023.
+
+Crawler is forked from:
+
+```
+@misc{WeiboSuperSpider,
+    author = {Tao Xiao},
+    title = {微博超级爬虫，最强微博爬虫，用户、话题、评论一网打尽。图片下载、情感分析，地理位置、关系网络等功能应有尽有。},
+    year = {2019},
+    publisher = {GitHub},
+    journal = {GitHub repository},
+    howpublished = {\url{https://github.com/Python3Spiders/WeiboSuperSpider}},
+}
+```
