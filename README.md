@@ -26,12 +26,13 @@ Final project for the Machine Learning and Economics course by Jiaxin He and Val
 ## Required Packages
 
 ### R packages:
-
-'install_packages("ggplot2")'
-'install_packages("outliers")'
-'install_packages("dplyr")'
-'install_packages("tidyverse")'
-'install_packages("stringr")'
+'''
+install_packages("ggplot2")
+install_packages("outliers")
+install_packages("dplyr")
+install_packages("tidyverse")
+install_packages("stringr")
+'''
 
 library(remotes)
 library(reticulate)
