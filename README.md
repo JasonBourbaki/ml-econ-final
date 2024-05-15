@@ -28,8 +28,11 @@ Final project for the Machine Learning and Economics course by Jiaxin He and Val
 ### Python dependencies:
 
 Anaconda 3 Installation: [Documentation](https://docs.anaconda.com/free/anaconda/install/index.html)
+
 Hugging Face Hub Installation: [Documentation](https://huggingface.co/docs/huggingface_hub/en/installation)
+
 Youdao BCE Embedding Installation: [Documentation](https://github.com/netease-youdao/BCEmbedding/blob/master/README.md)
+
 
 ### R packages:
 ```
