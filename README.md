@@ -52,11 +52,15 @@ use_condaenv("r-tensorflow")
 
 ---
 
-## Data Acquisition
+## Data Acquisition0
 
-Weibo Data is scrapped from the legacy web version of [People's Daily](https://weibo.cn/rmrb) from 01-01-2014 to 12-31-2023.
+Text data is scrapped from the legacy web version of [People's Daily Weibo account](https://weibo.cn/rmrb), covering the decade from 01-01-2014 to 12-31-2023.
 
-Crawler is forked from:
+Macroeconomic variables come from the [FRED Economic Data](https://fred.stlouisfed.org/).
+
+Shanghai Composite Index (SSECI) monthly prices are downloaded from [Yahoo Finance](https://finance.yahoo.com/quote/000001.SS/history/) while its volatility is produced by [NYU V-Lab](https://vlab.stern.nyu.edu/volatility/VOL.SHCOMP%3AIND-R.GARCH).
+
+Weibo crawler is forked from:
 
 ```
 @misc{WeiboSuperSpider,
